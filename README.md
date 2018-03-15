@@ -1,0 +1,2 @@
+# wangEditor-Notes
+对流行框架wangEditor富文本编辑器，逐字逐句进行翻译注解，学习相关思路和富文本编辑器的方法
