@@ -1,3 +1,9 @@
+//http://www.wangeditor.com/
+//
+//
+//
+//
+//
 (function(global, factory) {// 完成模块化，并且是兼容的写法  如果支持exports则用module.exports导出
 		// 如果支持define那么就用define导出
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
