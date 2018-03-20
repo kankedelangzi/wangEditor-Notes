@@ -6,6 +6,21 @@
 //
 (function(global, factory) {// 完成模块化，并且是兼容的写法  如果支持exports则用module.exports导出
 		// 如果支持define那么就用define导出
+		/*
+				typeof exports === 'object'支持es6？
+				typeof exports === 'object' && typeof module !== 'undefined'支持es6？
+				对外暴露接口 module.exports = factory()
+
+				不支持es6 typeof define === 'function' && define.amd支持amd规范？
+				define(factory)通过define方法暴露接口
+
+				都不支持？
+				global.wangEditor = factory() 通过global挂载全局
+
+				那么golbal是什么呢？ 是传入的参数   这个参数是后边传入的this,在全局环境下 this就是window对象，
+				所以就是将这个方法挂载到了window对象上边作为全局的函数存在
+
+		 */
 	typeof exports === 'object' && typeof module !== 'undefined' ? module.exports = factory() :
 		typeof define === 'function' && define.amd ? define(factory) :
 		(global.wangEditor = factory());
@@ -14,32 +29,68 @@
 
 
 	function() {
-	'use strict';
 	/*
-	    poly-fill
-	*/
-	var polyfill = function() {
+	为什么使用严格模式:
 
+		消除Javascript语法的一些不合理、不严谨之处，减少一些怪异行为;
+		消除代码运行的一些不安全之处，保证代码运行的安全；
+		提高编译器效率，增加运行速度；
+		为未来新版本的Javascript做好铺垫。
+		"严格模式"体现了Javascript更合理、更安全、更严谨的发展方向，包括IE 10在内的主流浏览器，都已经支持它，许多大项目已经开始全面拥抱它。
+
+		另一方面，同样的代码，在"严格模式"中，可能会有不一样的运行结果；一些在"正常模式"下可以运行的语句，在"严格模式"下将不能运行。掌握这些内容，有助于更细致深入地理解Javascript，让你变成一个更好的程序员。
+	 */
+
+	/*
+		 建议只在特定的作用域中使用严格模式。放在全局作用域中（函数外部），页面的其他脚本也都处于严格模式下。因为上面的调用方法不利于文件合并，所以更好的做法是，下面的方法，将整个脚本文件放在一个立即执行的函数表达式IIFE之中。
+	 */
+	/*
+		1严格模式下，变量都必须先用var命令显示声明
+		2 而且，严格模式不能对变量调用 delete 操作符（示例），会导致错误(Uncaught SyntaxError: Delete of an unqualified identifier in strict mode. )。
+		非严格模式允许这样操作，但返回false 。
+		3别用这些词做 变量名 或 参数名 implements, interface, let, package, private, protected, public, static, yield。这些都是保留字，将来ECMAScript 版本中可能会用到他们。
+		严格模式下作为其保留关键字，使用这些标识符作为变量名会导致语法错误。
+		4对象 为只读属性赋值报错（示例）
+		5严格模式下参数名不能重复(Uncaught SyntaxError: Strict mode function may not have duplicate parameter names)（示例）
+			非严格模式，函数内部实际访问的是第二个参数，要访问第一个参数必须通过arguments对象
+
+	 */
+	'use strict';
+
+
+	/**
+	 *
+	 * @return {[type]} [description]
+	 */
+	var polyfill = function() {
+		/*
+			Object.assign(target,source) 中将sources对象中所有可枚举的属性的值复制到目标的对象中，其会返回目标对象。该方法的兼容性不是很好，
+			IE全面沦陷，在移动端方面，仅有少数的浏览器才兼容该方法。幸好的是在MDN上提供了兼容的方法。
+			其实如果我们仔细观看源码的时候就会发现一个事实，那就是Object.assign()只是对一级属性进行复制，而不会对对象里面的对象进行深度拷贝，如果出现同名属性的key值，那么后者会覆盖前者，
+			并不能做到完整的融合，如果要进行融合的话，可以前往depp-assign中阅读。
+		 */
 		// Object.assign
-		if (typeof Object.assign != 'function') {
+		if (typeof Object.assign != 'function') {// 如果浏览器不支持Object.assign
 			Object.assign = function(target, varArgs) {// 定义Objext.assign方法
 				// .length of function is 2
-				if (target == null) {
+				if (target == null) {// 如果没有传入目标  比如   object.assign(),这样就会抛出异常Cannot convert undefined or null to object
 					// TypeError if undefined or null
 					throw new TypeError('Cannot convert undefined or null to object');
 				}
 
 				var to = Object(target);
 
-				for (var index = 1; index < arguments.length; index++) {
+				for (var index = 1; index < arguments.length; index++) {// 这里可以这样理解
+					// object.assign(target,obj1,obj2,obj3) 第一个认为是target
 					var nextSource = arguments[index];
 
-					if (nextSource != null) {
+					if (nextSource != null) {// 如果到了最后一个就结束 比如（） object.assign(target) 此时nectSource是null
 						// Skip over if undefined or null
-						for (var nextKey in nextSource) {
+						for (var nextKey in nextSource) {// 如果不为空。那么就是用遍历对象的方法遍历之
 							// Avoid bugs when hasOwnProperty is shadowed
-							if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
-								to[nextKey] = nextSource[nextKey];
+							if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {// 判断key值是否为自有属性，正常是不会出问题的
+								to[nextKey] = nextSource[nextKey];// 直接赋值，那么如果to对象内有这个属性将会直接被替换，而且如果key的value本身
+								// 如果是{}引用的类型的话，那也是传递的引用类型。
 							}
 						}
 					}
@@ -49,7 +100,7 @@
 		}
 
 		// IE 中兼容 Element.prototype.matches
-		if (!Element.prototype.matches) {
+		if (!Element.prototype.matches) {// 兼容性暂时不研究
 			Element.prototype.matches = Element.prototype.matchesSelector || Element.prototype.mozMatchesSelector || Element.prototype
 				.msMatchesSelector || Element.prototype.oMatchesSelector || Element.prototype.webkitMatchesSelector || function(s) {
 					var matches = (this.document || this.ownerDocument).querySelectorAll(s),
@@ -86,6 +137,7 @@
 	}
 
 	// 封装 document.querySelectorAll
+	// 并且做了封装，对于一个节点的也要按照数组的形式返回 [一个节点]
 	function querySelectorAll(selector) {// 封装选择器
 		var result = document.querySelectorAll(selector);
 		if (isDOMList(result)) {
@@ -97,16 +149,20 @@
 
 	// 创建构造函数
 	function DomElement(selector) {
-		if (!selector) {
+		// 将下边使用的成员变量提前注册，方便阅读和使用
+		this.length = 0;
+		this.selector = null;
+
+		if (!selector) {// 未传入，直接返回，其实最好是抛出异常
 			return;
 		}
 
 		// selector 本来就是 DomElement 对象，直接返回
-		if (selector instanceof DomElement) {
+		if (selector instanceof DomElement) {// 如果传入了一个DomElement对象那么直接返回这个对象
 			return selector;
 		}
 
-		this.selector = selector;
+		this.selector = selector;// 把参数挂载到自己的成员变量中，防止后边重命名等问题
 
 		// 根据 selector 得出的结果（如 DOM，DOM List）
 		var selectorResult = [];
@@ -118,7 +174,7 @@
 			selectorResult = selector;
 		} else if (typeof selector === 'string') {
 			// 字符串
-			selector = selector.replace('/\n/mg', '').trim();
+			selector = selector.replace('/\n/mg', '').trim();// 去掉换行和两侧空格
 			if (selector.indexOf('<') === 0) {
 				// 如 <div>
 				selectorResult = createElemByHTML(selector);
@@ -223,7 +279,7 @@
 					if (!selector) {
 						// 无代理
 						elem.addEventListener(type, fn, false);
-						return;
+						return;// 注意这里是跳出了对types的遍历
 					}
 
 					// 有代理
@@ -248,6 +304,7 @@
 		attr: function attr(key, val) {
 			//沿用 的是jquery的理念一个参数为获取值两个参数为设置，
 			//这其实也是有点类似于其他语言中的方法的重写
+			//注意如果是获取就只获取第一个的内容，如果是设置要讲所有的选取的元素都进行设置
 			if (val == null) {
 				// 获取值
 				return this[0].getAttribute(key);
@@ -261,7 +318,8 @@
 
 		// 添加 class
 		addClass: function addClass(className) {
-			if (!className) {
+			if (!className) {// 没有传入className返回当前对象，保证后边的操作的正确性，
+				// 程序不会抛出错误，但是请注意，如果设置了属性但是没有生效，这样就很难发现bug的存在了。。。。所以任务抛出错误是比较正确的选择
 				return this;
 			}
 			return this.forEach(function(elem) {
@@ -271,6 +329,7 @@
 					arr = elem.className.split(/\s/);
 					arr = arr.filter(function(item) {
 						// 如果类名是有效的防止出现无效类名比如 “a    ”这是arr是["a", '']
+						// 这里注意filter的用法，当return一个true时就会将当前item返回给arr
 						return !!item.trim();
 					});
 					// 添加 class
@@ -309,7 +368,7 @@
 			});
 		},
 
-		// 修改 css
+		// 修改 css  这个方法添加的是行内样式
 		css: function css(key, val) {
 			// 比如  key= position    val = absolute
 			var currentStyle = key + ':' + val + ';';
@@ -345,7 +404,7 @@
 						if (item.indexOf(key) === 0) {
 							return currentStyle;// 如果这个属性已经存在那么直接返回一个替换的结果
 						} else {
-							return item;// 如果不是这个属性那么原样返回（不如这次的with和height与position是无关的）
+							return item;// 如果不是这个属性那么原样返回（如这次的with和height与position是无关的）
 						}
 					});
 					if (resultArr.indexOf(currentStyle) < 0) {// 这是处理原来不存在这个属性的时候，直接加入
@@ -553,17 +612,42 @@
 		}
 	};
 
-	// new 一个对象
+	// new 一个对象  当使用$( selector )  时 其实是调用了DomElement这个构造函数
 	function $(selector) {// 使用selector创建一个新的DomElement对象。内部使用
 		return new DomElement(selector);
 	}
 
 	/*
 	    配置信息
+		默认参数，其实也是整个富文本编辑器的配置设置，就是调用的时候需要传入参数的参考值，写api文档就是对这个的一个注释
+		不过放的位置不是很好，最好是放在构造函数的位置
 	*/
 
 	var config = {
-
+		/*
+			[
+				'head',  // 标题
+				'bold',  // 粗体
+				'fontSize',  // 字号
+				'fontName',  // 字体
+				'italic',  // 斜体
+				'underline',  // 下划线
+				'strikeThrough',  // 删除线
+				'foreColor',  // 文字颜色
+				'backColor',  // 背景颜色
+				'link',  // 插入链接
+				'list',  // 列表
+				'justify',  // 对齐方式
+				'quote',  // 引用
+				'emoticon',  // 表情
+				'image',  // 插入图片
+				'table',  // 表格
+				'video',  // 插入视频
+				'code',  // 插入代码
+				'undo',  // 撤销
+				'redo'  // 重复
+			]
+		 */
 		// 默认菜单配置
 		menus: ['head', 'bold', 'italic', 'underline', 'strikeThrough', 'foreColor', 'backColor', 'link', 'list', 'justify',
 			'quote', 'emoticon', 'image', 'table', 'video', 'code', 'undo', 'redo'
@@ -667,7 +751,7 @@
 	function objForEach(obj, fn) {// 一共一个遍历对象的方法。
 		var key = void 0,
 			result = void 0;
-		for (key in obj) {
+			for (key in obj) {
 			if (obj.hasOwnProperty(key)) {// 保证这是自己的属性不是继承的属性
 				result = fn.call(obj, key, obj[key]);
 				if (result === false) {// 用于跳出操作
@@ -759,6 +843,11 @@
 	// 构造函数
 	function Bold(editor) {
 		this.editor = editor;
+		/*
+			下边是对应的加粗的标签，
+			其实很多ui组件都是要自己往容器里塞节点的，这样可以自由的控制节点，不需要使用者记各种类名，将类名封装在内部，外部只需要提供容器
+			当需要进行样式的操作时，也可以通过内部操作类名来实现
+		 */
 		this.$elem = $('<div class="w-e-menu">\n            <i class="w-e-icon-bold"><i/>\n        </div>');
 		this.type = 'click';
 
@@ -775,6 +864,7 @@
 			// 点击菜单将触发这里
 
 			var editor = this.editor;
+			// 其实通过menus的构造函数可以看出，选区为空的请款不会执行onClick事件，所以这个其实并不需要，当然，这样可以增强健壮性
 			var isSeleEmpty = editor.selection.isSelectionEmpty();// 判断选区是否为空
 
 			if (isSeleEmpty) {
@@ -793,6 +883,8 @@
 		},
 
 		// 试图改变 active 状态  改变工具栏按钮的颜色
+		// 这里为什么是取名为试图改变呢？因为当前的状态是不确定的，可能当前已经是加粗状态，也可能是未加粗状态，当然如果本身
+		// 已经加粗，那么再点击就是取消加粗，如果当前未加粗，那么操作后就是加粗
 		tryChangeActive: function tryChangeActive(e) {
 			var editor = this.editor;
 			var $elem = this.$elem;
@@ -2818,6 +2910,9 @@
 
 	/*
 	    菜单集合
+		其实这是一个事件的管理函数，或者成为controller 所有的具体的功能都并不是这个对象实现的
+		每个事件都有其自己独立的处理函数，这里只是集中的管理，或者是提供一个规范，有点类似于java
+		的接口
 	*/
 	// 构造函数
 	function Menus(editor) {
@@ -2839,7 +2934,13 @@
 
 			// 根据配置信息，创建菜单
 			configMenus.forEach(function(menuKey) {
-				var MenuConstructor = MenuConstructors[menuKey];
+				/*
+					这里有一点很值得借鉴，就是用过传入一个字符串的参数，如何调用一个函数？
+					即将这个函数挂载到一个对象上边。传入的字符串就可以通过对象去调用对应的方法！！！
+				 */
+				var MenuConstructor = MenuConstructors[menuKey];// 取出集合中对应的构造函数
+
+
 				if (MenuConstructor && typeof MenuConstructor === 'function') {
 					// 创建单个菜单
 					_this.menus[menuKey] = new MenuConstructor(editor);
@@ -2881,23 +2982,28 @@
 				var panel = menu.panel;
 
 				// 点击类型，例如 bold
-				if (type === 'click' && menu.onClick) {
-					$elem.on('click', function(e) {
-						if (editor.selection.getRange() == null) {
+				if (type === 'click' && menu.onClick) {// 如果这是一个点击类型的事件，并且有对应的点击事件的处理函数
+					$elem.on('click', function(e) {// 注册事件
+						if (editor.selection.getRange() == null) {// 如果选区为空，也就是并没有选中内容,不做任何操作
 							return;
 						}
-						menu.onClick(e);
+						menu.onClick(e);// 在有选区的条件下，点击事件发生时，执行对应的处理函数
 					});
 				}
 
 				// 下拉框，例如 head
-				if (type === 'droplist' && droplist) {
-					$elem.on('mouseenter', function(e) {
-						if (editor.selection.getRange() == null) {
+				/*
+					这里有一点可以值得借鉴，就是我们的原生的事件是非常有限的，即鼠标事件，键盘事件，加载事件等
+					但是平时使用的时候也许还用到其他的事件，比如下拉展开和收起事件，拖拽事件弹窗事件等，这些都可以
+					通过原生的事件通过组合产生，这里可以给他们起个名字   叫做  ----二次事件！！！值得研究
+				 */
+				if (type === 'droplist' && droplist) {// 如果这是一个下拉类型的事件，并且有对应的下拉事件的处理函数
+					$elem.on('mouseenter', function(e) {// 其实真正的下拉事件就是通过鼠标的划入划出实现的
+						if (editor.selection.getRange() == null) {// 如果选区为空，那么不做任何操作
 							return;
 						}
 						// 显示
-						droplist.showTimeoutId = setTimeout(function() {
+						droplist.showTimeoutId = setTimeout(function() {// 延迟0.2秒出现。防止突兀
 							droplist.show();
 						}, 200);
 					}).on('mouseleave', function(e) {
@@ -2909,7 +3015,7 @@
 				}
 
 				// 弹框类型，例如 link
-				if (type === 'panel' && menu.onClick) {
+				if (type === 'panel' && menu.onClick) {// 如果是一个面板事件
 					$elem.on('click', function(e) {
 						e.stopPropagation();
 						if (editor.selection.getRange() == null) {
@@ -3318,7 +3424,33 @@
 			// 粘贴图片
 			$textElem.on('paste', function(e) {
 				e.preventDefault();
+				/*
+					// 获取粘贴的图片文件
+					function getPasteImgs(e) {
+						var result = [];
+						var txt = getPasteText(e);
+						if (txt) {
+							// 有文字，就忽略图片
+							return result;
+						}
 
+						var clipboardData = e.clipboardData || e.originalEvent && e.originalEvent.clipboardData || {};
+						var items = clipboardData.items;
+						if (!items) {
+							return result;
+						}
+
+						objForEach(items, function(key, value) {
+							var type = value.type;
+							if (/image/i.test(type)) {
+								result.push(value.getAsFile());
+							}
+						});
+
+						return result;
+					}
+
+				 */
 				// 获取粘贴的图片
 				var pasteFiles = getPasteImgs(e);
 				if (!pasteFiles || !pasteFiles.length) {
@@ -3554,6 +3686,19 @@
 			var _name = '_' + name;
 			if (this[_name]) {
 				// 有自定义事件
+				/*
+					// 自定义 insertHTML 事件
+					// 插入 elem
+					其实是因为这两个时间在不同的浏览器之间有差异，所以自行封装保证各浏览器都能兼容
+					如果不考虑兼容问题，那么command就等价于document.execCommand
+					class Commond {
+							do:  document.execCommand;
+							queryCommandValue: document.queryCommandState;
+							queryCommandState: 	document.queryCommandSupported;
+							constructor(){
+							}
+						}
+				 */
 				this[_name](value);
 			} else {
 				// 默认 command
@@ -3745,6 +3890,7 @@
 	function API(editor) {
 		this.editor = editor;
 		this._currentRange = null;// 当前选区
+		// 用下划线表示是一个私有成员变量，那么要有相应的get和set方法供外边使用
 	}
 
 	// 修改原型
@@ -3752,30 +3898,45 @@
 		constructor: API,
 
 		// 获取 range 对象
+		// 成员变量的get方法_currentRange
 		getRange: function getRange() {
 			return this._currentRange;
 		},
 
 		// 保存选区
+		// 成员变量_currentRange 的set方法
 		saveRange: function saveRange(_range) {
-			if (_range) {
-				// 保存已有选区
+			if (_range) {// 如果传入选区参数直接赋值
+
 				this._currentRange = _range;
 				return;
 			}
 
+
+
+			// 一下都是没有传参情况的处理
 			// 获取当前的选区
 			var selection = window.getSelection();
-			if (selection.rangeCount === 0) {// 如果选区内，没有内容返回空
+
+			// 如果页面上没有选中区域那么不做任何操作
+			if (selection.rangeCount === 0) {
 				return;
 			}
+
+
+			// 下边是页面上手动选中选区，但是没有传参
+			// 选区可能有多个，那这个时候selection 中会保存一个集合  这个集合可以通过getRangeAt（ index） 这个方法进行获取
 			var range = selection.getRangeAt(0);// 当有多个选区时。获取第一个
 
 			// 判断选区内容是否在编辑内容之内
+			// 就是说页面中可能选中的内容并不在我们的文本编辑器之内，这种情况将不做任何操作
 			var $containerElem = this.getSelectionContainerElem(range);
 			if (!$containerElem) {
 				return;
 			}
+
+
+			// 下边是在选区中的内容被选中的情况
 			var editor = this.editor;
 			var $textElem = editor.$textElem;
 			if ($textElem.isContain($containerElem)) {
@@ -3846,9 +4007,11 @@
 		},
 
 		// 恢复选区
+		// 将当前对象的选取的内容赋值给选区对象，比如当前选中一个段落，结果某个操作发生之后
+		// 选区的内容发生了变化，那么操作结束后如果期望恢复之前的选区，那么就可以用此方法
 		restoreSelection: function restoreSelection() {
 			var selection = window.getSelection();
-			selection.removeAllRanges();
+			selection.removeAllRanges();// 去掉选区中的所有内容
 			selection.addRange(this._currentRange);
 		},
 
@@ -3862,7 +4025,7 @@
 				// 当前无 range
 				return;
 			}
-			if (!this.isSelectionEmpty()) {
+			if (!this.isSelectionEmpty()) {// 当前有选区，那就不允许再创建空白选区，因为没有这个不必要了
 				// 当前选区必须没有内容才可以
 				return;
 			}
@@ -3887,20 +4050,22 @@
 			// $elem - 经过封装的 elem
 			// toStart - true 开始位置，false 结束位置
 			// isContent - 是否选中Elem的内容
-			if (!$elem.length) {
+			if (!$elem.length) {// 如果没有传入第一个参数，也就是节点的集合，那就直接返回不做任何操作
+				// 那么这里为什么可以使用length属性进行判断呢，在DOMElement中默认选中的所有元素节点都要以集合的形式出现，其他不具备此属性
 				return;
 			}
 
 			var elem = $elem[0];
+			// 可以发现即使传入多个节点对象，那也只使用第一个节点创建选区对象
 			var range = document.createRange();
 
-			if (isContent) {
+			if (isContent) {// 这是根据element设置选区 如果是选中当前设置的选取那么走if
 				range.selectNodeContents(elem);
-			} else {
+			} else {//如果不选择新设置的选区，那么久走else
 				range.selectNode(elem);
 			}
 
-			if (typeof toStart === 'boolean') {
+			if (typeof toStart === 'boolean') {//是否将光标放在选区开始或选区结束
 				range.collapse(toStart);
 			}
 
@@ -4038,7 +4203,7 @@
 
 			var img = document.createElement('img');
 			img.onload = function() {
-				img = null;
+				img = null;// 释放节点，让浏览器自动回收所分配的空间（垃圾回收的应用）
 				editor.cmd.do('insertHTML', '<img src="' + link + '" style="max-width:100%;"/>');
 			};
 			img.onerror = function() {
@@ -4048,7 +4213,7 @@
 					'"\uFF0C\u4E0B\u8F7D\u8BE5\u94FE\u63A5\u5931\u8D25');
 				return;
 			};
-			img.onabort = function() {
+			img.onabort = function() {// 中断加载
 				img = null;
 			};
 			img.src = link;
@@ -4387,13 +4552,21 @@ var config = {
 
 	// 构造函数
 	function Editor(toolbarSelector, textSelector) {
+		this.$toolbarElem =null;// 工具栏容器
+		this.$textContainerElem = null;// 内容区容器
+		this.$textElem = null;// 内容区下边的文本编辑区容器
+		this.config = {}; // 存放配置参数
 		if (toolbarSelector == null) {
 			// 没有传入任何参数，报错
 			throw new Error('错误：初始化编辑器时候未传入任何参数，请查阅文档');
 		}
 		// id，用以区分单个页面不同的编辑器对象
 		this.id = 'wangEditor-' + editorId++;
-
+		/*
+			选择器传参说明：
+			传入一个参数，那么就将这个参数作为最大的容器，然后自动创建工具栏和文本区然后append到这个容器中
+			传入参数为两个时， 第一个作为工具栏的选择器，第二个作为文本区的选择器
+		 */
 		this.toolbarSelector = toolbarSelector;
 		this.textSelector = textSelector;
 
@@ -4412,7 +4585,7 @@ var config = {
 
 			// 这是配置信息的入口其中config是默认设置，而customConfig是用户可以操作的设置是一个实例方法
 			// 而config是一个私有方法，不对外暴露
-			// 这样所有的基础信息配置都放在this.config上了，不过这个方法并没有在构造函数的内部初始化
+			// 这样所有的基础信息配置都放在this.config上了，不过这个成员变量并没有在构造函数的内部初始化
 			// 觉得这是一个大的缺陷
 			this.config = Object.assign(target, config, this.customConfig);
 		},
@@ -4435,6 +4608,7 @@ var config = {
 				$children = void 0;
 
 			if (textSelector == null) {
+				//传入一个参数，那么就将这个参数作为最大的容器，然后自动创建工具栏和文本区然后append到这个容器中
 				// 只传入一个参数，即是容器的选择器或元素，toolbar 和 text 的元素自行创建
 				$toolbarElem = $('<div></div>');// 头部工具栏
 				$textContainerElem = $('<div></div>');// 编辑体
@@ -4449,6 +4623,7 @@ var config = {
 				$toolbarElem.css('background-color', '#fff').css('border', '1px solid #ddd');
 				$textContainerElem.css('border', '1px solid #ddd').css('border-top', 'none').css('height', '300px');
 			} else {
+				//传入参数为两个时， 第一个作为工具栏的选择器，第二个作为文本区的选择器
 				// toolbar 和 text 的选择器都有值，记录属性
 				$toolbarElem = $toolbarSelector;
 				$textContainerElem = $(textSelector);
@@ -4483,6 +4658,7 @@ var config = {
 			this.$textElem = $textElem;
 
 			// 绑定 onchange
+			// 这里将click  keyup  等事件都定义为change事件！！！！！！
 			$textContainerElem.on('click keyup', function() {
 				_this.change && _this.change();
 			});
@@ -4580,7 +4756,20 @@ var config = {
 		},
 
 		// 创建编辑器
-		create: function create() {
+		create: function create() {// 此事件只进行了注册但是并未进行创建是因为创建的时候需要一些使用者配置的参数，config里边的参数
+			// 如果直接调用了，那么后边配置的参数就无效了
+			/*
+					var E = window.wangEditor
+					var editor = new E('#div1')
+					// 自定义菜单配置
+					editor.customConfig.menus = [
+					  'head',
+					  'bold',
+					  'italic',
+					  'underline'
+					]
+					editor.create()
+			 */
 			// 初始化配置信息
 			this._initConfig();
 
