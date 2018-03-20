@@ -916,17 +916,41 @@
 	// 构造函数
 	function DropList(menu, opt) {// 下拉列表
 		var _this = this;
-
+		/*
+		this.droplist = new DropList(this, {
+			width: 100,
+			$title: $('<p>设置标题</p>'),
+			type: 'list', // droplist 以列表形式展示
+			list: [{
+				$elem: $('<h1>H1</h1>'),
+				value: '<h1>'
+			}, {
+				$elem: $('<h2>H2</h2>'),
+				value: '<h2>'
+			}, {
+				$elem: $('<h3>H3</h3>'),
+				value: '<h3>'
+			}, {
+				$elem: $('<h4>H4</h4>'),
+				value: '<h4>'
+			}, {
+				$elem: $('<h5>H5</h5>'),
+				value: '<h5>'
+			}, {
+				$elem: $('<p>正文</p>'),
+				value: '<p>'
+			}],
+		 */
 		// droplist 所依附的菜单
-		this.menu = menu;
-		this.opt = opt;
+		this.menu = menu;// 比如 h1-h5  那这个menu就是Head
+		this.opt = opt;// 参数列表
 		// 容器
 		var $container = $('<div class="w-e-droplist"></div>');
 
 		// 标题
 		var $title = opt.$title;
 		if ($title) {
-			$title.addClass('w-e-dp-title');
+			$title.addClass('w-e-dp-title');//$title: $('<p>设置标题</p>'),
 			$container.append($title);
 		}
 
@@ -936,6 +960,8 @@
 
 		// 加入 DOM 并绑定事件
 		var $list = $('<ul class="' + (type === 'list' ? 'w-e-list' : 'w-e-block') + '"></ul>');
+
+
 		$container.append($list);
 		list.forEach(function(item) {
 			var $elem = item.$elem;
@@ -976,7 +1002,8 @@
 
 		// 显示（插入DOM）
 		show: function show() {
-			if (this.hideTimeoutId) {
+			if (this.hideTimeoutId) {// 由于之前的hide都是放在setTimeout中的
+				// 所以在展示之前先清除掉所有的隐藏的延迟操作，以免出现bug
 				// 清除之前的定时隐藏
 				clearTimeout(this.hideTimeoutId);
 			}
@@ -984,20 +1011,30 @@
 			var menu = this.menu;
 			var $menuELem = menu.$elem;
 			var $container = this.$container;
-			if (this._show) {
+			if (this._show) {// 当前已经是显现状态，不做操作
 				return;
 			}
-			if (this._rendered) {
+			if (this._rendered) {// 如果是第二次显现
+				/*
+					第二次和第一次的区别在于，第一次是需要将对应的节点渲染到页面上的第二次以后都不需要再重新渲染
+				 */
 				// 显示
 				$container.show();
 			} else {
 				// 加入 DOM 之前先定位位置
 				var menuHeight = $menuELem.getSizeData().height || 0;
-				var width = this.opt.width || 100; // 默认为 100
+				var width = this.opt.width || 100; // 默认为 100// 可见宽度是可以传入的但是高度是默认父盒子的高度
+
+				/*
+						--------------------------------------
+						|	  menus(高度menuHeight)			|
+						--------------------------------------
+						container 就位于下边线这，这样就能保证划过menus时让container出现，最好是结合文档的demo图查看
+				 */
 				$container.css('margin-top', menuHeight + 'px').css('width', width + 'px');
 
 				// 加入到 DOM
-				$menuELem.append($container);
+				$menuELem.append($container);// 让menu作为container的父节点
 				this._rendered = true;
 			}
 
@@ -1067,7 +1104,8 @@
 				$elem: $('<p>正文</p>'),
 				value: '<p>'
 			}],
-			onClick: function onClick(value) {
+			onClick: function onClick(value) {// 这种方式比较巧妙，就是虽然暂时不能定义点击事件但是可以将
+				// 事件的处理函数定义在这，留给后边定义点击事件使用
 				// 注意 this 是指向当前的 Head 对象
 				_this._command(value);
 			}
