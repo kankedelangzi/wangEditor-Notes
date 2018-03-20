@@ -751,7 +751,7 @@
 	function objForEach(obj, fn) {// 一共一个遍历对象的方法。
 		var key = void 0,
 			result = void 0;
-		for (key in obj) {
+			for (key in obj) {
 			if (obj.hasOwnProperty(key)) {// 保证这是自己的属性不是继承的属性
 				result = fn.call(obj, key, obj[key]);
 				if (result === false) {// 用于跳出操作
@@ -843,6 +843,11 @@
 	// 构造函数
 	function Bold(editor) {
 		this.editor = editor;
+		/*
+			下边是对应的加粗的标签，
+			其实很多ui组件都是要自己往容器里塞节点的，这样可以自由的控制节点，不需要使用者记各种类名，将类名封装在内部，外部只需要提供容器
+			当需要进行样式的操作时，也可以通过内部操作类名来实现
+		 */
 		this.$elem = $('<div class="w-e-menu">\n            <i class="w-e-icon-bold"><i/>\n        </div>');
 		this.type = 'click';
 
@@ -859,6 +864,7 @@
 			// 点击菜单将触发这里
 
 			var editor = this.editor;
+			// 其实通过menus的构造函数可以看出，选区为空的请款不会执行onClick事件，所以这个其实并不需要，当然，这样可以增强健壮性
 			var isSeleEmpty = editor.selection.isSelectionEmpty();// 判断选区是否为空
 
 			if (isSeleEmpty) {
@@ -877,6 +883,8 @@
 		},
 
 		// 试图改变 active 状态  改变工具栏按钮的颜色
+		// 这里为什么是取名为试图改变呢？因为当前的状态是不确定的，可能当前已经是加粗状态，也可能是未加粗状态，当然如果本身
+		// 已经加粗，那么再点击就是取消加粗，如果当前未加粗，那么操作后就是加粗
 		tryChangeActive: function tryChangeActive(e) {
 			var editor = this.editor;
 			var $elem = this.$elem;
@@ -2902,6 +2910,9 @@
 
 	/*
 	    菜单集合
+		其实这是一个事件的管理函数，或者成为controller 所有的具体的功能都并不是这个对象实现的
+		每个事件都有其自己独立的处理函数，这里只是集中的管理，或者是提供一个规范，有点类似于java
+		的接口
 	*/
 	// 构造函数
 	function Menus(editor) {
@@ -2923,7 +2934,13 @@
 
 			// 根据配置信息，创建菜单
 			configMenus.forEach(function(menuKey) {
-				var MenuConstructor = MenuConstructors[menuKey];
+				/*
+					这里有一点很值得借鉴，就是用过传入一个字符串的参数，如何调用一个函数？
+					即将这个函数挂载到一个对象上边。传入的字符串就可以通过对象去调用对应的方法！！！
+				 */
+				var MenuConstructor = MenuConstructors[menuKey];// 取出集合中对应的构造函数
+
+
 				if (MenuConstructor && typeof MenuConstructor === 'function') {
 					// 创建单个菜单
 					_this.menus[menuKey] = new MenuConstructor(editor);
@@ -2965,23 +2982,28 @@
 				var panel = menu.panel;
 
 				// 点击类型，例如 bold
-				if (type === 'click' && menu.onClick) {
-					$elem.on('click', function(e) {
-						if (editor.selection.getRange() == null) {
+				if (type === 'click' && menu.onClick) {// 如果这是一个点击类型的事件，并且有对应的点击事件的处理函数
+					$elem.on('click', function(e) {// 注册事件
+						if (editor.selection.getRange() == null) {// 如果选区为空，也就是并没有选中内容,不做任何操作
 							return;
 						}
-						menu.onClick(e);
+						menu.onClick(e);// 在有选区的条件下，点击事件发生时，执行对应的处理函数
 					});
 				}
 
 				// 下拉框，例如 head
-				if (type === 'droplist' && droplist) {
-					$elem.on('mouseenter', function(e) {
-						if (editor.selection.getRange() == null) {
+				/*
+					这里有一点可以值得借鉴，就是我们的原生的事件是非常有限的，即鼠标事件，键盘事件，加载事件等
+					但是平时使用的时候也许还用到其他的事件，比如下拉展开和收起事件，拖拽事件弹窗事件等，这些都可以
+					通过原生的事件通过组合产生，这里可以给他们起个名字   叫做  ----二次事件！！！值得研究
+				 */
+				if (type === 'droplist' && droplist) {// 如果这是一个下拉类型的事件，并且有对应的下拉事件的处理函数
+					$elem.on('mouseenter', function(e) {// 其实真正的下拉事件就是通过鼠标的划入划出实现的
+						if (editor.selection.getRange() == null) {// 如果选区为空，那么不做任何操作
 							return;
 						}
 						// 显示
-						droplist.showTimeoutId = setTimeout(function() {
+						droplist.showTimeoutId = setTimeout(function() {// 延迟0.2秒出现。防止突兀
 							droplist.show();
 						}, 200);
 					}).on('mouseleave', function(e) {
@@ -2993,7 +3015,7 @@
 				}
 
 				// 弹框类型，例如 link
-				if (type === 'panel' && menu.onClick) {
+				if (type === 'panel' && menu.onClick) {// 如果是一个面板事件
 					$elem.on('click', function(e) {
 						e.stopPropagation();
 						if (editor.selection.getRange() == null) {
@@ -3402,7 +3424,33 @@
 			// 粘贴图片
 			$textElem.on('paste', function(e) {
 				e.preventDefault();
+				/*
+					// 获取粘贴的图片文件
+					function getPasteImgs(e) {
+						var result = [];
+						var txt = getPasteText(e);
+						if (txt) {
+							// 有文字，就忽略图片
+							return result;
+						}
 
+						var clipboardData = e.clipboardData || e.originalEvent && e.originalEvent.clipboardData || {};
+						var items = clipboardData.items;
+						if (!items) {
+							return result;
+						}
+
+						objForEach(items, function(key, value) {
+							var type = value.type;
+							if (/image/i.test(type)) {
+								result.push(value.getAsFile());
+							}
+						});
+
+						return result;
+					}
+
+				 */
 				// 获取粘贴的图片
 				var pasteFiles = getPasteImgs(e);
 				if (!pasteFiles || !pasteFiles.length) {
@@ -3850,30 +3898,45 @@
 		constructor: API,
 
 		// 获取 range 对象
+		// 成员变量的get方法_currentRange
 		getRange: function getRange() {
 			return this._currentRange;
 		},
 
 		// 保存选区
+		// 成员变量_currentRange 的set方法
 		saveRange: function saveRange(_range) {
-			if (_range) {
-				// 保存已有选区
+			if (_range) {// 如果传入选区参数直接赋值
+
 				this._currentRange = _range;
 				return;
 			}
 
+
+
+			// 一下都是没有传参情况的处理
 			// 获取当前的选区
 			var selection = window.getSelection();
-			if (selection.rangeCount === 0) {// 如果选区内，没有内容返回空
+
+			// 如果页面上没有选中区域那么不做任何操作
+			if (selection.rangeCount === 0) {
 				return;
 			}
+
+
+			// 下边是页面上手动选中选区，但是没有传参
+			// 选区可能有多个，那这个时候selection 中会保存一个集合  这个集合可以通过getRangeAt（ index） 这个方法进行获取
 			var range = selection.getRangeAt(0);// 当有多个选区时。获取第一个
 
 			// 判断选区内容是否在编辑内容之内
+			// 就是说页面中可能选中的内容并不在我们的文本编辑器之内，这种情况将不做任何操作
 			var $containerElem = this.getSelectionContainerElem(range);
 			if (!$containerElem) {
 				return;
 			}
+
+
+			// 下边是在选区中的内容被选中的情况
 			var editor = this.editor;
 			var $textElem = editor.$textElem;
 			if ($textElem.isContain($containerElem)) {
@@ -3944,9 +4007,11 @@
 		},
 
 		// 恢复选区
+		// 将当前对象的选取的内容赋值给选区对象，比如当前选中一个段落，结果某个操作发生之后
+		// 选区的内容发生了变化，那么操作结束后如果期望恢复之前的选区，那么就可以用此方法
 		restoreSelection: function restoreSelection() {
 			var selection = window.getSelection();
-			selection.removeAllRanges();
+			selection.removeAllRanges();// 去掉选区中的所有内容
 			selection.addRange(this._currentRange);
 		},
 
@@ -3960,7 +4025,7 @@
 				// 当前无 range
 				return;
 			}
-			if (!this.isSelectionEmpty()) {
+			if (!this.isSelectionEmpty()) {// 当前有选区，那就不允许再创建空白选区，因为没有这个不必要了
 				// 当前选区必须没有内容才可以
 				return;
 			}
@@ -3985,11 +4050,13 @@
 			// $elem - 经过封装的 elem
 			// toStart - true 开始位置，false 结束位置
 			// isContent - 是否选中Elem的内容
-			if (!$elem.length) {
+			if (!$elem.length) {// 如果没有传入第一个参数，也就是节点的集合，那就直接返回不做任何操作
+				// 那么这里为什么可以使用length属性进行判断呢，在DOMElement中默认选中的所有元素节点都要以集合的形式出现，其他不具备此属性
 				return;
 			}
 
 			var elem = $elem[0];
+			// 可以发现即使传入多个节点对象，那也只使用第一个节点创建选区对象
 			var range = document.createRange();
 
 			if (isContent) {// 这是根据element设置选区 如果是选中当前设置的选取那么走if
@@ -4136,7 +4203,7 @@
 
 			var img = document.createElement('img');
 			img.onload = function() {
-				img = null;
+				img = null;// 释放节点，让浏览器自动回收所分配的空间（垃圾回收的应用）
 				editor.cmd.do('insertHTML', '<img src="' + link + '" style="max-width:100%;"/>');
 			};
 			img.onerror = function() {
@@ -4146,7 +4213,7 @@
 					'"\uFF0C\u4E0B\u8F7D\u8BE5\u94FE\u63A5\u5931\u8D25');
 				return;
 			};
-			img.onabort = function() {
+			img.onabort = function() {// 中断加载
 				img = null;
 			};
 			img.src = link;
